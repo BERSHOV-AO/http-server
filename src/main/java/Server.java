@@ -3,6 +3,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 public class Server {
@@ -64,13 +66,49 @@ public class Server {
                                         "Connection: close\r\n" +
                                         "\r\n"
                         ).getBytes());
-                        // так как мы должны в
+                        // Так как, мы должны в вернуть не строкой а массивом байт, мы ее не просто записываем в буфер
+                        // мы из строки получаем массив байт с помощью getBytes(), и массив байт мы записываем в буфер
+                        // При этом, если вдруг у нас данные будут долго отправляться, или буфер будет слишком большой,
+                        // мы используем метод flush(), что бы принудительно буфер очисть, что бы убедится что клиену
+                        // данные отправлены.
                         out.flush();
+                        // Только после этого мы выходим на следующую итерацию continue.
                         continue;
                     }
 
 
+                    // Сначала собираем путь к файлу на диске -> если путь правильный (пример: /index.html),
+                    // то из этого пути, нужно установить путь файла на
+                    // диске, это мы сможем сделать с помощью класс Path и статического конструктора of, так как файлы
+                    // лежат в папке "public", а паблик лежит в корне проекта ".", таким образом мы собираем
+                    // путь к файлу Path.of(".", "public", path);
+                    final var filePath = Path.of(".", "public", path);
+                    // Еще нужно указать тип контента, которы можно указать с помощью Files.probeContentType(filePath)
+                    // ТО ЕСТЬ - это тип файла
+                    final var mimeType = Files.probeContentType(filePath);
 
+                    // TODO: 30.09.2023
+
+                    // Так как файл мы будем возвращать в теле ответа
+                    // Возвращаем ти файла "Content-Type: " + mimeType + "\r\n" +
+                    // Возвращаем размер файла "Content-Length: " + length + "\r\n" +
+                    // Зарываем соединение "Connection: close\r\n" +
+                    final var length = Files.size(filePath);
+                    // формируем ответ клиенту, все это опять упаковываем в баты.
+                    out.write((
+                            "HTTP/1.1 200 OK\r\n" +
+                                    "Content-Type: " + mimeType + "\r\n" +
+                                    "Content-Length: " + length + "\r\n" +
+                                    "Connection: close\r\n" +
+                                    "\r\n"
+                    ).getBytes());
+                    // Весь этот ответ уходит в запись, что бы отправить тело ответа клиенту,
+                    // это можно сделать с помощью утилиты работы с файлами с помощью класса Files и метода copy()
+                    // мы указываем путь к файлу (filePath) и буфер (out) куда это путь
+                    // нужно скопировать это можно скопировать
+                    Files.copy(filePath, out);
+                    // flush обязателен, по тому как файл может быть большой, и может передаваться долго
+                    out.flush();
                 }
             }
         } catch (IOException e) {
