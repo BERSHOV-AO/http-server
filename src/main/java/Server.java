@@ -5,6 +5,7 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class Server {
@@ -54,7 +55,6 @@ public class Server {
                         // Выходим из блока try, и клиентский сокет закрывается.
                         continue;
                     }
-
                     // Проверяем валидный путь, сравниваем пришедший путь с validPaths
                     // "Content-Length: 0\r\n" говорит о том, что нет тела ответа
                     // "Connection: close\r\n" соединение можно закрывать
@@ -75,8 +75,6 @@ public class Server {
                         // Только после этого мы выходим на следующую итерацию continue.
                         continue;
                     }
-
-
                     // Сначала собираем путь к файлу на диске -> если путь правильный (пример: /index.html),
                     // то из этого пути, нужно установить путь файла на
                     // диске, это мы сможем сделать с помощью класс Path и статического конструктора of, так как файлы
@@ -88,7 +86,28 @@ public class Server {
                     final var mimeType = Files.probeContentType(filePath);
 
                     // TODO: 30.09.2023
-
+                    // Если у нас приходит запрос на страничку "/classic.html"
+                    if (path.equals("/classic.html")) {
+                        // Мы читаем файл не как файл, читаем как строку
+                        final var template = Files.readString(filePath);
+                        // Называется отрендерить шаблон, находим в файле нашу метку "{time}", и заменяем ее на
+                        // значение текущего времени LocalDateTime.now().toString()
+                        // Соответственно получаем контент, и так как нам принято возвращать массив байт, приводим
+                        // контент к массиву байт
+                        final var content = template.replace(
+                                "{time}", LocalDateTime.now().toString()
+                        ).getBytes();
+                        out.write((
+                                "HTTP/1.1 200 OK\r\n" +
+                                        "Content-Type: " + mimeType + "\r\n" +
+                                        "Content-Length: " + content.length + "\r\n" +
+                                        "Connection: close\r\n" +
+                                        "\r\n"
+                        ).getBytes());
+                        out.write(content);
+                        out.flush();
+                        continue;
+                    }
                     // Так как файл мы будем возвращать в теле ответа
                     // Возвращаем ти файла "Content-Type: " + mimeType + "\r\n" +
                     // Возвращаем размер файла "Content-Length: " + length + "\r\n" +
@@ -98,6 +117,7 @@ public class Server {
                     out.write((
                             "HTTP/1.1 200 OK\r\n" +
                                     "Content-Type: " + mimeType + "\r\n" +
+                                    //"Content-Type: " + "text/plain" + "\r\n" +
                                     "Content-Length: " + length + "\r\n" +
                                     "Connection: close\r\n" +
                                     "\r\n"
